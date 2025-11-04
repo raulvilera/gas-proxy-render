@@ -1,47 +1,48 @@
-// server.js
-const express = require('express');
-const cors = require('cors');
-const fetch = require('node-fetch');
+import express from "express";
+import fetch from "node-fetch";
+import cors from "cors";
 
 const app = express();
-
 app.use(cors());
 app.use(express.json());
 
-// 🔗 URL do Google Apps Script (sua URL real)
-const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx_0xQzvWEGJoRlcHASY8EDEZj6RfZ89kSm2H6qJJECFCnqnPe7EKcUb_6BBHbpn4BR/exec';
+const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwAL6PdzJnA0ATW0IjPfbyexuL7nZCnUoTFZjmiqxcME-xGlntRFGeXTZsmZSRLb265/exec";
 
-// === Rota principal (teste rápido) ===
-app.get('/', (req, res) => {
-  res.send('Servidor rodando com sucesso e conectado ao Google Sheets!');
+// 🔹 Rota principal — teste rápido no navegador
+app.get("/", (req, res) => {
+  res.send("✅ Servidor Render ativo e conectado ao Google Sheets!");
 });
 
-// === Rota para receber os dados do formulário e enviar ao Google Sheets ===
-app.post('/enviar', async (req, res) => {
+// 🔹 Rota de envio — recebe os dados do formulário e repassa ao Google Sheets
+app.post("/enviar", async (req, res) => {
+  console.log("📩 Dados recebidos do formulário:", req.body);
+
   try {
-    console.log('📩 Dados recebidos do formulário:', req.body);
-
-    // Envia os dados ao Apps Script
-    const response = await fetch(GOOGLE_SCRIPT_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(req.body)
+    const resposta = await fetch(GOOGLE_SCRIPT_URL, {
+      method: "POST",
+      // ⚠️ ALTERAÇÃO IMPORTANTE: Apps Script entende melhor text/plain
+      headers: { "Content-Type": "text/plain" },
+      body: JSON.stringify(req.body),
     });
 
-    const result = await response.json();
-    console.log('📤 Resposta do Google Sheets:', result);
+    const respostaTexto = await resposta.text();
+    console.log("📤 Resposta bruta do Apps Script:", respostaTexto);
 
-    res.status(200).json({
-      success: true,
-      message: 'Dados enviados ao Google Sheets com sucesso!',
-      googleResponse: result
-    });
-  } catch (error) {
-    console.error('❌ Erro ao enviar para o Google Sheets:', error);
-    res.status(500).json({ success: false, message: error.message });
+    // tenta interpretar como JSON — caso contrário, devolve texto cru
+    let dados;
+    try {
+      dados = JSON.parse(respostaTexto);
+    } catch {
+      dados = { success: false, message: "Resposta não era JSON", raw: respostaTexto };
+    }
+
+    res.json(dados);
+  } catch (err) {
+    console.error("❌ Erro ao enviar para Google Sheets:", err);
+    res.status(500).json({ success: false, message: err.message });
   }
 });
 
-// === Porta padrão do Render ===
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`✅ Servidor rodando na porta ${PORT}`));
+// 🔹 Inicialização do servidor
+const PORT = process.env.PORT || 10000;
+app.listen(PORT, () => console.log(`🚀 Servidor rodando com sucesso na porta ${PORT}`));
